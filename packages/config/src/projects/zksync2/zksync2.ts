@@ -32,7 +32,6 @@ export const zksync2: ScalingProject = zkStackL2({
       documentation: ['https://docs.zksync.io/'],
       explorers: [
         'https://explorer.zksync.io/',
-        'https://era.zksync.network/',
         'https://zksync.blockscout.com/',
         'https://hyperscan.xyz/',
       ],
@@ -70,7 +69,7 @@ export const zksync2: ScalingProject = zkStackL2({
         url: 'https://mainnet.era.zksync.io',
         callsPerMinute: 300,
       },
-      { type: 'etherscan', chainId },
+      { type: 'blockscout', url: 'https://zksync.blockscout.com/api' },
     ],
   },
   associatedTokens: ['ZK'],

@@ -163,8 +163,8 @@ export const chains: ChainConfig[] = [
       EthereumAddress('0xF9cda624FBC7e059355ce98a31693d299FACd963'),
     ),
     explorer: {
-      type: 'etherscan',
-      url: 'https://api-era.zksync.network/api',
+      type: 'blockscout',
+      url: 'https://zksync.blockscout.com/api',
     },
     coingeckoPlatform: 'zksync',
   },
