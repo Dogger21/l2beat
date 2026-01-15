@@ -72,6 +72,22 @@ export class AggregatedInteropTransferRepository extends BaseRepository {
     return rows.map(toRecord)
   }
 
+  async deleteBefore(timestamp: UnixTime): Promise<number> {
+    const result = await this.db
+      .deleteFrom('AggregatedInteropTransfer')
+      .where('timestamp', '<', UnixTime.toDate(timestamp))
+      .executeTakeFirst()
+    return Number(result.numDeletedRows)
+  }
+
+  async deleteByTimestamp(timestamp: UnixTime): Promise<number> {
+    const result = await this.db
+      .deleteFrom('AggregatedInteropTransfer')
+      .where('timestamp', '=', UnixTime.toDate(timestamp))
+      .executeTakeFirst()
+    return Number(result.numDeletedRows)
+  }
+
   async deleteAll(): Promise<number> {
     const result = await this.db
       .deleteFrom('AggregatedInteropTransfer')

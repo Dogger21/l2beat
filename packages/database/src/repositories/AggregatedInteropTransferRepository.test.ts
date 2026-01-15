@@ -73,30 +73,218 @@ describeDatabase(AggregatedInteropTransferRepository.name, (db) => {
       expect(result).toEqualUnsorted(records)
     })
   })
+
+  describe(
+    AggregatedInteropTransferRepository.prototype.deleteBefore.name,
+    () => {
+      it('deletes records before timestamp and returns count', async () => {
+        const record1 = record(
+          'id1',
+          UnixTime(100),
+          'ethereum',
+          'arbitrum',
+          5,
+          1000,
+        )
+        const record2 = record(
+          'id2',
+          UnixTime(200),
+          'arbitrum',
+          'ethereum',
+          3,
+          2000,
+        )
+        const record3 = record(
+          'id3',
+          UnixTime(300),
+          'polygon',
+          'ethereum',
+          7,
+          3000,
+        )
+        const records = [record1, record2, record3]
+
+        await repository.insertMany(records)
+
+        const deleted = await repository.deleteBefore(UnixTime(250))
+        expect(deleted).toEqual(2)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toEqualUnsorted([record3])
+      })
+
+      it('returns 0 when no records before timestamp', async () => {
+        await repository.insertMany([
+          record('id1', UnixTime(200), 'ethereum', 'arbitrum', 5, 1000),
+          record('id2', UnixTime(300), 'arbitrum', 'ethereum', 3, 2000),
+        ])
+
+        const deleted = await repository.deleteBefore(UnixTime(100))
+        expect(deleted).toEqual(0)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toHaveLength(2)
+      })
+
+      it('returns 0 when no records exist', async () => {
+        const deleted = await repository.deleteBefore(UnixTime(100))
+        expect(deleted).toEqual(0)
+      })
+
+      it('does not delete records with equal timestamp', async () => {
+        const record1 = record(
+          'id1',
+          UnixTime(100),
+          'ethereum',
+          'arbitrum',
+          5,
+          1000,
+        )
+        const record2 = record(
+          'id2',
+          UnixTime(200),
+          'arbitrum',
+          'ethereum',
+          3,
+          2000,
+        )
+        const records = [record1, record2]
+
+        await repository.insertMany(records)
+
+        const deleted = await repository.deleteBefore(UnixTime(200))
+        expect(deleted).toEqual(1)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toEqualUnsorted([record2])
+      })
+    },
+  )
+
+  describe(
+    AggregatedInteropTransferRepository.prototype.deleteByTimestamp.name,
+    () => {
+      it('deletes records with matching timestamp and returns count', async () => {
+        const record1 = record(
+          'id1',
+          UnixTime(100),
+          'ethereum',
+          'arbitrum',
+          5,
+          1000,
+        )
+        const record2 = record(
+          'id2',
+          UnixTime(200),
+          'arbitrum',
+          'ethereum',
+          3,
+          2000,
+        )
+        const record3 = record(
+          'id3',
+          UnixTime(200),
+          'polygon',
+          'ethereum',
+          7,
+          3000,
+        )
+        const record4 = record(
+          'id4',
+          UnixTime(300),
+          'ethereum',
+          'polygon',
+          2,
+          4000,
+        )
+        const records = [record1, record2, record3, record4]
+
+        await repository.insertMany(records)
+
+        const deleted = await repository.deleteByTimestamp(UnixTime(200))
+        expect(deleted).toEqual(2)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toEqualUnsorted([record1, record4])
+      })
+
+      it('returns 0 when no records match timestamp', async () => {
+        await repository.insertMany([
+          record('id1', UnixTime(100), 'ethereum', 'arbitrum', 5, 1000),
+          record('id2', UnixTime(200), 'arbitrum', 'ethereum', 3, 2000),
+        ])
+
+        const deleted = await repository.deleteByTimestamp(UnixTime(300))
+        expect(deleted).toEqual(0)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toHaveLength(2)
+      })
+
+      it('returns 0 when no records exist', async () => {
+        const deleted = await repository.deleteByTimestamp(UnixTime(100))
+        expect(deleted).toEqual(0)
+      })
+
+      it('deletes only records with exact timestamp match', async () => {
+        const record1 = record(
+          'id1',
+          UnixTime(100),
+          'ethereum',
+          'arbitrum',
+          5,
+          1000,
+        )
+        const record2 = record(
+          'id2',
+          UnixTime(200),
+          'arbitrum',
+          'ethereum',
+          3,
+          2000,
+        )
+        const record3 = record(
+          'id3',
+          UnixTime(300),
+          'polygon',
+          'ethereum',
+          7,
+          3000,
+        )
+        const records = [record1, record2, record3]
+
+        await repository.insertMany(records)
+
+        const deleted = await repository.deleteByTimestamp(UnixTime(200))
+        expect(deleted).toEqual(1)
+
+        const remaining = await repository.getAll()
+        expect(remaining).toEqualUnsorted([record1, record3])
+      })
+    },
+  )
 })
 
 function record(
   id: string,
   timestamp: UnixTime,
-  srcChain?: string,
-  dstChain?: string,
+  srcChain: string,
+  dstChain: string,
   transferCount = 1,
   totalDurationSum = 0,
-  srcAbstractTokenId?: string,
-  dstAbstractTokenId?: string,
   srcValueUsd?: number,
   dstValueUsd?: number,
+  tokensByVolume: Record<string, number> = {},
 ): AggregatedInteropTransferRecord {
   return {
     timestamp,
     id,
     srcChain,
     dstChain,
-    srcAbstractTokenId,
-    dstAbstractTokenId,
     transferCount,
     totalDurationSum,
     srcValueUsd,
     dstValueUsd,
+    tokensByVolume,
   }
 }
