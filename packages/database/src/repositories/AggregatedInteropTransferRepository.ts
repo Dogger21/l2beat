@@ -6,10 +6,9 @@ import type { AggregatedInteropTransfer } from '../kysely/generated/types'
 export interface AggregatedInteropTransferRecord {
   timestamp: UnixTime
   id: string
-  srcChain: string | undefined
-  dstChain: string | undefined
-  srcAbstractTokenId: string | undefined
-  dstAbstractTokenId: string | undefined
+  srcChain: string
+  dstChain: string
+  tokensByVolume: Record<string, number>
   transferCount: number
   totalDurationSum: number
   srcValueUsd: number | undefined
@@ -24,8 +23,7 @@ export function toRecord(
     id: row.id,
     srcChain: row.srcChain ?? undefined,
     dstChain: row.dstChain ?? undefined,
-    srcAbstractTokenId: row.srcAbstractTokenId ?? undefined,
-    dstAbstractTokenId: row.dstAbstractTokenId ?? undefined,
+    tokensByVolume: row.tokensByVolume as Record<string, number>,
     transferCount: row.transferCount,
     totalDurationSum: row.totalDurationSum,
     srcValueUsd: row.srcValueUsd ?? undefined,
@@ -40,9 +38,8 @@ export function toRow(
     timestamp: UnixTime.toDate(record.timestamp),
     id: record.id,
     srcChain: record.srcChain,
-    srcAbstractTokenId: record.srcAbstractTokenId,
     dstChain: record.dstChain,
-    dstAbstractTokenId: record.dstAbstractTokenId,
+    tokensByVolume: JSON.stringify(record.tokensByVolume),
     transferCount: record.transferCount,
     totalDurationSum: record.totalDurationSum,
     srcValueUsd: record.srcValueUsd,

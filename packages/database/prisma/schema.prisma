@@ -535,3 +535,17 @@ model InteropPluginSyncedRange {
 
   @@id([pluginName, chain])
 }
+
+model AggregatedInteropTransfer {
+  timestamp        DateTime @db.Timestamp(6)
+  id               String   @db.VarChar(255)
+  srcChain         String   @db.VarChar(255)
+  dstChain         String   @db.VarChar(255)
+  tokensByVolume   Json
+  transferCount    Int
+  totalDurationSum Int
+  srcValueUsd      Float?   @db.Real
+  dstValueUsd      Float?   @db.Real
+
+  @@id([id, srcChain, dstChain])
+}

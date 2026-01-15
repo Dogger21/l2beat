@@ -1,23 +1,7 @@
-import { HttpClient } from '@l2beat/shared'
-import type { LongChainName } from '@l2beat/shared-pure'
-import { getTokenDbClient } from '@l2beat/token-backend'
 import { HourlyIndexer } from '../../../tools/HourlyIndexer'
 import { IndexerService } from '../../../tools/uif/IndexerService'
 import type { ApplicationModule, ModuleDependencies } from '../../types'
-import { createInteropPlugins } from '../plugins'
-import { RelayApiClient } from '../plugins/relay/RelayApiClient'
-import { RelayIndexer, RelayRootIndexer } from '../plugins/relay/relay.indexer'
-import { InteropBlockProcessor } from './capture/InteropBlockProcessor'
-import { InteropEventStore } from './capture/InteropEventStore'
-import { InteropCleanerLoop } from './cleaner/InteropCleanerLoop'
-import { InteropCompareLoop } from './compare/InteropCompareLoop'
-import { InteropConfigStore } from './config/InteropConfigStore'
-import { createInteropRouter } from './dashboard/InteropRouter'
-import { InteropFinancialsLoop } from './financials/InteropFinancialsLoop'
-import { InteropRecentPricesIndexer } from './financials/InteropRecentPricesIndexer'
-import { InteropMatchingLoop } from './match/InteropMatchingLoop'
-import { InteropTransferStream } from './stream/InteropTransferStream'
-import { InteropSyncersManager } from './sync/InteropSyncersManager'
+import { InteropAggregatingIndexer } from './aggregation/InteropAggregatingIndexer'
 
 export function createInteropModule({
   config,
@@ -33,144 +17,28 @@ export function createInteropModule({
   }
   logger = logger.tag({ feature: 'interop', module: 'interop' })
 
-  const eventStore = new InteropEventStore(db, config.interop.inMemoryEventCap)
-  const configStore = new InteropConfigStore(db)
-  const plugins = createInteropPlugins({
-    configs: configStore,
-    chains: config.interop.config.chains,
-    httpClient: new HttpClient(),
-    logger,
-    rpcClients: providers.clients.rpcClients,
-  })
+  const hourlyIndexer = new HourlyIndexer(logger, clock)
 
-  const syncersManager = new InteropSyncersManager(
-    plugins.eventPlugins,
-    config.interop.capture.chains.map((c) => c.id as LongChainName),
-    config.chainConfig,
-    eventStore,
-    db,
-    logger,
-  )
-
-  const transferStream = new InteropTransferStream()
-
-  const processors = []
-  if (config.interop.capture.enabled) {
-    for (const chain of config.interop.capture.chains) {
-      const processor = new InteropBlockProcessor(
-        chain.id,
-        plugins.eventPlugins,
-        eventStore,
-        logger,
-      )
-      blockProcessors.push(processor)
-      blockProcessors.push(
-        syncersManager.getBlockProcessor(chain.id as LongChainName),
-      )
-      processors.push(processor)
-    }
+  if (!config.interop.aggregation) {
+    return
   }
 
-  const matcher = new InteropMatchingLoop(
-    eventStore,
+  const interopAggregatingIndexer = new InteropAggregatingIndexer({
+    configs: config.interop.aggregation.configs,
     db,
-    plugins.eventPlugins,
-    config.interop.capture.chains.map((c) => c.id),
     logger,
-    transferStream,
-  )
-
-  const router = createInteropRouter(
-    db,
-    config.interop,
-    processors,
-    logger.for('InteropRouter'),
-    transferStream,
-  )
-
-  const compareLoops = plugins.comparePlugins.map(
-    (c) => new InteropCompareLoop(db, c, logger),
-  )
-
-  const indexerService = new IndexerService(db)
-  const cleaner = new InteropCleanerLoop(eventStore, db, logger)
-
-  const hourlyIndexer = new HourlyIndexer(logger, clock)
-  const recentPricesIndexer = new InteropRecentPricesIndexer({
-    db,
-    priceProvider: providers.price,
-    logger,
+    indexerService: new IndexerService(db),
     parents: [hourlyIndexer],
-    minHeight: 1,
-    indexerService,
+    minHeight: 0,
   })
-
-  const tokenDbClient = getTokenDbClient({
-    apiUrl: config.interop.financials.tokenDbApiUrl,
-    authToken: config.interop.financials.tokenDbAuthToken,
-    callSource: 'interop',
-  })
-
-  const financialsService = new InteropFinancialsLoop(
-    config.interop.capture.chains,
-    db,
-    tokenDbClient,
-    logger,
-  )
-
-  const relayApiClient = new RelayApiClient(new HttpClient())
-  const relayRootIndexer = new RelayRootIndexer(logger)
-  const relayIndexer = new RelayIndexer(
-    config.interop.config.chains,
-    config.interop.capture.chains.map((c) => c.id),
-    relayApiClient,
-    db,
-    eventStore,
-    relayRootIndexer,
-    indexerService,
-    logger,
-  )
 
   const start = async () => {
     logger = logger.for('InteropModule')
     logger.info('Starting')
-
-    await eventStore.start()
-
-    if (config.interop && config.interop.matching) {
-      matcher.start()
-      await relayRootIndexer.start()
-      await relayIndexer.start()
-    }
-    if (config.interop && config.interop.compare.enabled) {
-      for (const compareLoop of compareLoops) {
-        compareLoop.start()
-      }
-    }
-    if (config.interop && config.interop.cleaner) {
-      cleaner.start()
-    }
-    if (config.interop && config.interop.financials.enabled) {
-      await hourlyIndexer.start()
-      await recentPricesIndexer.start()
-      financialsService.start()
-    }
-    if (config.interop && config.interop.config.enabled) {
-      await configStore.start()
-      for (const configLoop of plugins.configPlugins) {
-        configLoop.start()
-      }
-    }
-    logger.info('Started', {
-      comparePlugins: plugins.comparePlugins.length,
-      configPlugins: plugins.configPlugins.length,
-      eventPlugins: plugins.eventPlugins.length,
-    })
-
-    if (config.interop && config.interop.capture.enabled) {
-      syncersManager.start()
-    }
+    await hourlyIndexer.start()
+    await interopAggregatingIndexer.start()
+    logger.info('Started')
   }
 
-  return { routers: [router], start }
+  return { routers: [], start }
 }

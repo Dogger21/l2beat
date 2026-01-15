@@ -39,11 +39,7 @@ export class InteropAggregatingIndexer extends ManagedChildIndexer {
       const filtered = transfers.filter((transfer) =>
         conditions.some((condition) => condition(transfer)),
       )
-      const grouped = groupBy(
-        filtered,
-        (x) =>
-          `${x.srcChain}-${x.dstChain}-${x.srcAbstractTokenId}-${x.dstAbstractTokenId}`,
-      )
+      const grouped = groupBy(filtered, (x) => `${x.srcChain}-${x.dstChain}`)
 
       for (const group of Object.values(grouped)) {
         aggregatedRecords.push({
@@ -75,26 +71,49 @@ export class InteropAggregatingIndexer extends ManagedChildIndexer {
   ): Omit<AggregatedInteropTransferRecord, 'id' | 'timestamp'> {
     const first = group[0]
     assert(first, 'Group is empty')
-    const merged: Omit<AggregatedInteropTransferRecord, 'id' | 'timestamp'> = {
-      srcChain: first.srcChain,
-      dstChain: first.dstChain,
-      srcAbstractTokenId: first.srcAbstractTokenId,
-      dstAbstractTokenId: first.dstAbstractTokenId,
-      transferCount: group.length,
-      totalDurationSum: 0,
-      srcValueUsd: undefined,
-      dstValueUsd: undefined,
-    }
+
+    const tokensByVolume: Record<string, number> = {}
+    let totalDurationSum = 0
+    let srcValueUsd = 0
+    let dstValueUsd = 0
+
     for (const transfer of group) {
-      merged.totalDurationSum += transfer.duration ?? 0
+      totalDurationSum += transfer.duration ?? 0
       if (transfer.srcValueUsd !== undefined) {
-        merged.srcValueUsd = (merged.srcValueUsd ?? 0) + transfer.srcValueUsd
+        srcValueUsd += transfer.srcValueUsd
       }
       if (transfer.dstValueUsd !== undefined) {
-        merged.dstValueUsd = (merged.dstValueUsd ?? 0) + transfer.dstValueUsd
+        dstValueUsd += transfer.dstValueUsd
+      }
+      if (transfer.srcAbstractTokenId === transfer.dstAbstractTokenId) {
+        if (transfer.srcAbstractTokenId) {
+          tokensByVolume[transfer.srcAbstractTokenId] =
+            (tokensByVolume[transfer.srcAbstractTokenId] ?? 0) +
+            (transfer.srcValueUsd ?? transfer.dstValueUsd ?? 0)
+        }
+      } else {
+        if (transfer.srcAbstractTokenId) {
+          tokensByVolume[transfer.srcAbstractTokenId] =
+            (tokensByVolume[transfer.srcAbstractTokenId] ?? 0) +
+            (transfer.srcValueUsd ?? 0)
+        }
+        if (transfer.dstAbstractTokenId) {
+          tokensByVolume[transfer.dstAbstractTokenId] =
+            (tokensByVolume[transfer.dstAbstractTokenId] ?? 0) +
+            (transfer.dstValueUsd ?? 0)
+        }
       }
     }
-    return merged
+
+    return {
+      srcChain: first.srcChain,
+      dstChain: first.dstChain,
+      tokensByVolume,
+      transferCount: group.length,
+      totalDurationSum,
+      srcValueUsd,
+      dstValueUsd,
+    }
   }
 
   private txMatchers(config: InteropAggregationConfig) {
