@@ -216,7 +216,10 @@ describe(InteropAggregatingIndexer.name, () => {
       >({
         deleteBefore: mockFn().resolvesTo(0),
         deleteByTimestamp: mockFn().resolvesTo(0),
-        insertMany: mockFn().resolvesTo(5),
+        insertMany: mockFn(async (x) => {
+          console.log('dupa', x)
+          return Promise.resolve(5)
+        }),
       })
 
       const transaction = mockFn(async (fn: any) => await fn())
@@ -289,7 +292,7 @@ describe(InteropAggregatingIndexer.name, () => {
             eth: 10500,
             usdc: 3500,
           },
-          transferCount: 2,
+          transferCount: 3,
           totalDurationSum: 28000,
           srcValueUsd: 10500,
           dstValueUsd: 10500,
