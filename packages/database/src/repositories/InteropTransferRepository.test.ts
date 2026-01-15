@@ -532,6 +532,55 @@ describeDatabase(InteropTransferRepository.name, (db) => {
     })
   })
 
+  describe(InteropTransferRepository.prototype.getByRange.name, () => {
+    beforeEach(async () => {
+      await repository.insertMany([
+        transfer('plugin1', 'msg1', 'deposit', UnixTime(100)),
+        transfer('plugin1', 'msg2', 'deposit', UnixTime(200)),
+        transfer('plugin2', 'msg3', 'withdraw', UnixTime(300)),
+        transfer('plugin2', 'msg4', 'deposit', UnixTime(400)),
+        transfer('plugin1', 'msg5', 'withdraw', UnixTime(500)),
+      ])
+    })
+
+    it('returns transfers within the specified range', async () => {
+      const result = await repository.getByRange(UnixTime(200), UnixTime(400))
+
+      expect(result).toHaveLength(3)
+      expect(result.map((r) => r.transferId)).toEqualUnsorted([
+        'msg2',
+        'msg3',
+        'msg4',
+      ])
+    })
+
+    it('includes transfers at the boundary timestamps', async () => {
+      const result = await repository.getByRange(UnixTime(100), UnixTime(500))
+
+      expect(result).toHaveLength(5)
+      expect(result.map((r) => r.transferId)).toEqualUnsorted([
+        'msg1',
+        'msg2',
+        'msg3',
+        'msg4',
+        'msg5',
+      ])
+    })
+
+    it('returns empty array when no transfers in range', async () => {
+      const result = await repository.getByRange(UnixTime(600), UnixTime(700))
+
+      expect(result).toEqual([])
+    })
+
+    it('returns single transfer when range matches exactly', async () => {
+      const result = await repository.getByRange(UnixTime(300), UnixTime(300))
+
+      expect(result).toHaveLength(1)
+      expect(result[0]?.transferId).toEqual('msg3')
+    })
+  })
+
   afterEach(async () => {
     await repository.deleteAll()
   })

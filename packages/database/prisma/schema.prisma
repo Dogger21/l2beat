@@ -548,4 +548,6 @@ model AggregatedInteropTransfer {
   totalDurationSum   Int
   srcValueUsd        Float?   @db.Real
   dstValueUsd        Float?   @db.Real
+
+  @@unique([id, srcChain, dstChain, srcAbstractTokenId, dstAbstractTokenId])
 }

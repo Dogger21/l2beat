@@ -148,12 +148,12 @@ export interface InteropTransfersStatsRecord {
 
 export interface InteropTransfersDetailedStatsRecord {
   type: string
-  srcChain: string
-  dstChain: string
+  srcChain: string | undefined
+  dstChain: string | undefined
   count: number
   avgDuration: number
-  srcValueSum: number
-  dstValueSum: number
+  srcValueSum: number | undefined
+  dstValueSum: number | undefined
 }
 
 export class InteropTransferRepository extends BaseRepository {
@@ -170,6 +170,20 @@ export class InteropTransferRepository extends BaseRepository {
   async getAll(): Promise<InteropTransferRecord[]> {
     const rows = await this.db
       .selectFrom('InteropTransfer')
+      .selectAll()
+      .execute()
+
+    return rows.map(toRecord)
+  }
+
+  async getByRange(
+    from: UnixTime,
+    to: UnixTime,
+  ): Promise<InteropTransferRecord[]> {
+    const rows = await this.db
+      .selectFrom('InteropTransfer')
+      .where('timestamp', '>=', UnixTime.toDate(from))
+      .where('timestamp', '<=', UnixTime.toDate(to))
       .selectAll()
       .execute()
 
