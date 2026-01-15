@@ -64,7 +64,7 @@ export class InteropAggregatingIndexer extends ManagedChildIndexer {
 
   // Invalidate everytime
   override invalidate(_: number): Promise<number> {
-    return Promise.resolve(-1)
+    return Promise.resolve(0)
   }
 
   private mergeGroup(

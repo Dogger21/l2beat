@@ -302,7 +302,7 @@ describe(InteropAggregatingIndexer.name, () => {
   })
 
   describe(InteropAggregatingIndexer.prototype.invalidate.name, () => {
-    it('returns -1', async () => {
+    it('returns 0', async () => {
       const indexer = new InteropAggregatingIndexer({
         db: mockDatabase(),
         configs: [],
@@ -314,7 +314,7 @@ describe(InteropAggregatingIndexer.name, () => {
 
       const result = await indexer.invalidate(100)
 
-      expect(result).toEqual(-1)
+      expect(result).toEqual(0)
     })
   })
 })
