@@ -547,5 +547,6 @@ model AggregatedInteropTransfer {
   srcValueUsd      Float?   @db.Real
   dstValueUsd      Float?   @db.Real
 
-  @@id([id, srcChain, dstChain])
+  @@id([timestamp, id, srcChain, dstChain])
+  @@index([timestamp, srcChain, dstChain])
 }

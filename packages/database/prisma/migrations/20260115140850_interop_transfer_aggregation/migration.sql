@@ -10,5 +10,8 @@ CREATE TABLE "AggregatedInteropTransfer" (
     "srcValueUsd" REAL,
     "dstValueUsd" REAL,
 
-    CONSTRAINT "AggregatedInteropTransfer_pkey" PRIMARY KEY ("id","srcChain","dstChain")
+    CONSTRAINT "AggregatedInteropTransfer_pkey" PRIMARY KEY ("timestamp","id","srcChain","dstChain")
 );
+
+-- CreateIndex
+CREATE INDEX "AggregatedInteropTransfer_timestamp_srcChain_dstChain_idx" ON "AggregatedInteropTransfer"("timestamp", "srcChain", "dstChain");
