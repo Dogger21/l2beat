@@ -50,7 +50,7 @@ export class InteropAggregatingIndexer extends ManagedChildIndexer {
       }
     }
 
-    this.$.db.transaction(async () => {
+    await this.$.db.transaction(async () => {
       await this.$.db.aggregatedInteropTransfer.deleteBefore(from)
       await this.$.db.aggregatedInteropTransfer.deleteByTimestamp(to)
       await this.$.db.aggregatedInteropTransfer.insertMany(aggregatedRecords)
